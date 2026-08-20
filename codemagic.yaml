@@ -1,0 +1,52 @@
+workflows:
+  ios-release:
+    name: iOS Release Build (App Store / TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up dependencies
+        script: |
+          flutter packages pub get
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Build iOS IPA
+        script: |
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist || flutter build ios --release --no-codesign
+      - name: Package IPA if unsigned
+        script: |
+          if [ ! -d "build/ios/ipa" ]; then
+            mkdir -p Payload
+            cp -r build/ios/iphoneos/Runner.app Payload/
+            mkdir -p build/ios/ipa
+            zip -r build/ios/ipa/MeetKSA_Customer_v1.0.0.ipa Payload
+            rm -rf Payload
+          fi
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+  android-release:
+    name: Android Release Build (APK & AAB)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Set up dependencies
+        script: |
+          flutter packages pub get
+      - name: Build Android Release
+        script: |
+          flutter build apk --release
+          flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
